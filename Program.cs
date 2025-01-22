@@ -8,6 +8,8 @@ using Accord.Math.Geometry;
 using System;
 using Accord.MachineLearning.VectorMachines.Learning;
 using Accord.DataSets;
+using Accord.MachineLearning;
+using Accord.Math.Optimization.Losses;
 
 Console.WriteLine("Getting Iris Data");
 var test = new irisData();
@@ -59,3 +61,51 @@ kappa = cm.Kappa;         // should be 0.9
  chiSquare = cm.ChiSquare; // should be 248.52216748768473
 Console.WriteLine("Multi Class SVM uisng Linear Coordinat Descent algorithm ");
 Console.WriteLine("Error = {0:p2}, Accuracy = {1:p4}, kappa =  {2:F2}, chiSquare {3:F4}", error, accuracy, kappa, chiSquare);
+
+// In this example, we will learn a multi-class SVM using the one-vs - one(OvO)
+// approach. The OvO approacbh can decompose decision problems involving multiple 
+// classes into a series of binary ones, which can then be solved using SVMs.
+
+// Ensure we have reproducible results
+Accord.Math.Random.Generator.Seed = 0;
+
+// We will try to learn a classifier
+// for the Fisher Iris Flower dataset
+// inputs and outputs defined above
+
+// We will use mini-batches of size 32 to learn a SVM using SGD
+var batches = MiniBatches.Create(batchSize: 32, maxIterations: 1000,
+   shuffle: ShuffleMethod.EveryEpoch, input: inputs, output: outputs);
+
+// Now, we can create a multi-class teaching algorithm for the SVMs
+ var teachermsv = new MulticlassSupportVectorLearning<Linear, double[]>
+{
+    // We will use SGD to learn each of the binary problems in the multi-class problem
+    Learner = (p) => new AveragedStochasticGradientDescent<Linear, double[], LogisticLoss>()
+    {
+        LearningRate = 1e-3,
+        MaxIterations = 1 // so the gradient is only updated once after each mini-batch
+    }
+};
+
+// The following line is only needed to ensure reproducible results. Please remove it to enable full parallelization
+teacher.ParallelOptions.MaxDegreeOfParallelism = 1; // (Remove, comment, or change this line to enable full parallelism)
+
+// Now, we can start training the model on mini-batches:
+foreach (var batch in batches)
+{
+    teachermsv.Learn(batch.Inputs, batch.Outputs);
+}
+
+// Get the final model:
+var svm = teachermsv.Model;
+
+// Now, we should be able to use the model to predict 
+// the classes of all flowers in Fisher's Iris dataset:
+int[] prediction = svm.Decide(inputs);
+
+// And from those predictions, we can compute the model accuracy:
+ cm = new GeneralConfusionMatrix(expected: outputs, predicted: prediction);
+ accuracy = cm.Accuracy; // should be approximately 0.973
+Console.WriteLine("SVM model using o-vs-o using Average Stochastic Gradient Descent to learn the model");
+Console.WriteLine("Accuracy = {0:p2}%, Precision = {1:p2}, Recall = {2:p2}", accuracy, cm.Precision[1], cm.Recall[2]);
