@@ -1,7 +1,7 @@
 *.suo
 /bin/Debug/net8.0/
 /obj/
-.vs/IrisData/CopilotIndices/
+.vs/
 *.vsidx
 *.json
 *.bin
