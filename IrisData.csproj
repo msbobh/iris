@@ -11,6 +11,7 @@
     <PackageReference Include="Accord" Version="3.8.0" />
     <PackageReference Include="Accord.DataSets" Version="3.8.0" />
     <PackageReference Include="Accord.MachineLearning" Version="3.8.0" />
+    <PackageReference Include="SharpZipLib.NETStandard" Version="0.86.0.1" />
   </ItemGroup>
 
 </Project>
