@@ -1,4 +1,5 @@
 ﻿using Accord.DataSets;
+using Accord.Math;
 
 /* The Iris flower data set or Fisher's Iris data set is a multivariate data set introduced by Ronald Fisher in his 1936 paper 
  * The use of multiple measurements in taxonomic problems as an example of linear discriminant analysis. It is sometimes called
@@ -23,6 +24,35 @@ namespace _AccordData
             classLabels = _iris.ClassLabels;
             iData = _iris.Instances;
 
+        }
+    }
+
+    public class MNISTData
+    {
+        //public double [] TrainingData { get; } // Handwritten digit data set
+        public Tuple<Sparse<double>[], double[]> _training;
+        public Tuple<Sparse<double>[], double[]> _testData;
+        public string Destination { get; }
+
+        public MNISTData()
+        {
+            var _MNIST = new Accord.DataSets.MNIST();
+            _training = _MNIST.Training;
+            Destination = _MNIST.Path;
+            _testData = _MNIST.Testing;
+
+        }
+    }
+
+    public class BreastData // Breast Cancer Data
+    {
+        public int?[][] iData { get; }
+        public int[] classLabels { get; }
+        public BreastData()
+        {
+            var _breast = new WisconsinOriginalBreastCancer();
+            iData = _breast.Features;
+            classLabels = _breast.ClassLabels;
         }
     }
 
