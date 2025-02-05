@@ -10,6 +10,7 @@ using Accord.MachineLearning.VectorMachines.Learning;
 using Accord.DataSets;
 using Accord.MachineLearning;
 using Accord.Math.Optimization.Losses;
+using Accord.Math;
 
 Console.WriteLine("Getting Iris Data");
 var test = new irisData();
@@ -109,3 +110,34 @@ int[] prediction = svm.Decide(inputs);
  accuracy = cm.Accuracy; // should be approximately 0.973
 Console.WriteLine("SVM model using o-vs-o using Average Stochastic Gradient Descent to learn the model");
 Console.WriteLine("Accuracy = {0:p2}%, Precision = {1:p2}, Recall = {2:p2}", accuracy, cm.Precision[1], cm.Recall[2]);
+
+var mn = new MNISTData();
+Console.WriteLine("MNIST Data created");
+
+var breast = new BreastData();
+Console.WriteLine("Breast Cancer Data created");
+var breastInputs = breast.iData.Select(arr => arr.Select(i => (double)i.GetValueOrDefault()).ToArray()).ToArray();
+int[]? breastOutputs = breast.classLabels;
+double[]? breastLabels = breastOutputs.Select(i => (double)i).ToArray();
+
+Console.WriteLine("create the sequential minimal optimization teacher with a Gaussian Kernel");
+// Now, we can create the sequential minimal optimization teacher
+var learn = new SequentialMinimalOptimization<Gaussian>()
+{
+    UseComplexityHeuristic = true,
+    UseKernelEstimation = true
+};
+
+// And then we can obtain a trained SVM by calling its Learn method
+SupportVectorMachine<Gaussian> svm4 = learn.Learn(breastInputs, breastOutputs);
+
+// Finally, we can obtain the decisions predicted by the machine:
+GeneralConfusionMatrix _br2 = GeneralConfusionMatrix.Estimate(svm4, breastInputs, breastOutputs);
+Console.ForegroundColor = ConsoleColor.Red;
+Console.WriteLine("Accuracy = {0:p2}%", _br2.Accuracy);
+Console.ResetColor();
+
+
+
+
+
