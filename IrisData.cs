@@ -55,5 +55,15 @@ namespace _AccordData
             classLabels = _breast.ClassLabels;
         }
     }
-
+    public class WineData
+    {
+        public double[][] iData { get; }
+        public int[] classLabels { get; }
+        public WineData()
+        {
+            var _wine = new Wine();
+            iData = _wine.Instances;
+            classLabels = _wine.ClassLabels;
+        }
+    }
 }

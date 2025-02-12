@@ -11,6 +11,9 @@ using Accord.DataSets;
 using Accord.MachineLearning;
 using Accord.Math.Optimization.Losses;
 using Accord.Math;
+using Accord.Statistics.Models.Regression.Fitting;
+using Accord.Statistics.Models.Regression;
+using Accord.Math.Optimization;
 
 Console.WriteLine("Getting Iris Data");
 var test = new irisData();
@@ -136,8 +139,53 @@ GeneralConfusionMatrix _br2 = GeneralConfusionMatrix.Estimate(svm4, breastInputs
 Console.ForegroundColor = ConsoleColor.Red;
 Console.WriteLine("Accuracy = {0:p2}%", _br2.Accuracy);
 Console.ResetColor();
+//
+// Let's learn some multiclass wine data
+//
+
+WineData foo = new WineData(); // Get the wine data set from the Accord library, has 3 clases
+Console.WriteLine("Got the wine data");
+MulticlassSupportVectorLearning<Gaussian> _wineTeacher = new MulticlassSupportVectorLearning<Gaussian>()
+{
+    //Learner = static (params) => new LowerBoundNewtonRaphson()
+Learner = (param) => new SequentialMinimalOptimization<Gaussian>()
+/*ProbabilisticNewtonMethod ()*/
+/*StochasticGradientDescent<Gaussian>()*/
+/*SupportVectorReduction<Gaussian>()*/
+/*FanChenLinSupportVectorRegression<Gaussian>()*/
+{
+    // If you would like to use other kernels, simply replace
+    // the generic parameter to the desired kernel class, such
+    // as for example, Polynomial or Gaussian:
+    Kernel = new Gaussian(),// use the Gaussian kernel
+                            //UseComplexityHeuristic = true,
+                            //UseKernelEstimation = true
+}
+};
+
+// class label check
+var labelCounts = foo.classLabels.GroupBy(x => x).Select(g => new { Label = g.Key, Count = g.Count() });
+foreach (var labelCount in labelCounts)
+{
+    Console.WriteLine($"Label: {labelCount.Label}, Count: {labelCount.Count}");
+}
 
 
+// Estimate the multi-class support vector machine using one-vs-one method
+//MulticlassSupportVectorMachine<Gaussian> WineResult = _wineTeacher.Learn(foo.iData, foo.classLabels);
 
+//_br2 = GeneralConfusionMatrix.Estimate(WineResult, foo.iData, foo.classLabels);
+Console.ForegroundColor = ConsoleColor.Red;
+//Console.WriteLine("Accuracy = {0:p2}%", _br2.Accuracy);
+Console.ResetColor();
+
+var _mlr = new MultinomialLogisticLearning<BroydenFletcherGoldfarbShanno>()
+{
+
+};
+var _lBFGS = _mlr.Learn(foo.iData, foo.classLabels);
+Console.ForegroundColor = ConsoleColor.Magenta;
+Console.WriteLine("Accuracy = {0:p2}%", GeneralConfusionMatrix.Estimate(_lBFGS,foo.iData, foo.classLabels).Accuracy);
+Console.ResetColor ();
 
 
