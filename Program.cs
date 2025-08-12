@@ -14,178 +14,147 @@ using Accord.Math;
 using Accord.Statistics.Models.Regression.Fitting;
 using Accord.Statistics.Models.Regression;
 using Accord.Math.Optimization;
+using Models;
+using Accord.IO;
+using Accord.Statistics.Models.Fields.Features;
+using System.Reflection.Emit;
+using System.Diagnostics;
 
-Console.WriteLine("Getting Iris Data");
-var test = new irisData();
-double[][] inputs = test.iData;
-int[] outputs = test.classLabels;
+// Load up 3 Different data sets
+//
+var _IrisData = new irisData();
+var _Winedata = new WineData();
+var _BreastData = new BreastData();
 
-
-var teacher = new MulticlassSupportVectorLearning<Linear>()
+// MNIST Data
+// Try the csv version of MNIST data
+string filename = Path.Combine(Directory.GetCurrentDirectory(), "mnist_test.csv");
+double[][] MNISTCSV_data;
+using (CsvReader reader = new CsvReader(filename, hasHeaders: true))
 {
-    Learner = (param) => new SequentialMinimalOptimization<Linear>()
-    {
-        // If you would like to use other kernels, simply replace
-        // the generic parameter to the desired kernel class, such
-        // as for example, Polynomial or Gaussian:
+    // Read the data into a 2D array
+    MNISTCSV_data = reader.ToJagged<double>();
 
-        Kernel = new Linear() // use the Linear kernel
-    }
-
-};
-
-
-// Estimate the multi-class support vector machine using one-vs-one method
-MulticlassSupportVectorMachine<Linear> ovo = teacher.Learn(test.iData, test.classLabels);
-
-// Compute classification error
-GeneralConfusionMatrix cm = GeneralConfusionMatrix.Estimate(ovo, test.iData, test.classLabels);
-
-double error = cm.Error;         // should be 0.066666666666666652
-double accuracy = cm.Accuracy;   // should be 0.93333333333333335
-double kappa = cm.Kappa;         // should be 0.9
-double chiSquare = cm.ChiSquare; // should be 248.52216748768473
-Console.WriteLine("Multi Class SVM uisng SMO training algorithm");
-Console.WriteLine("Error = {0:p2}, Accuracy = {1:p4}, kappa =  {2:F2}, chiSquare {3:F4}\n", error, accuracy, kappa, chiSquare);
-
-teacher = new MulticlassSupportVectorLearning<Linear>()
-{
-    // using LIBLINEAR's L2-loss SVC dual for each SVM
-    Learner = (p) => new LinearDualCoordinateDescent()
-    {
-        Loss = Loss.L2
-    }
-};
-MulticlassSupportVectorMachine<Linear> ovo2 = teacher.Learn(inputs,outputs);
-cm = GeneralConfusionMatrix.Estimate(ovo2, inputs, outputs);
-
-error = cm.Error;         // should be 0.066666666666666652
-accuracy = cm.Accuracy;   // should be 0.93333333333333335
-kappa = cm.Kappa;         // should be 0.9
- chiSquare = cm.ChiSquare; // should be 248.52216748768473
-Console.WriteLine("Multi Class SVM uisng Linear Coordinat Descent algorithm ");
-Console.WriteLine("Error = {0:p2}, Accuracy = {1:p4}, kappa =  {2:F2}, chiSquare {3:F4}", error, accuracy, kappa, chiSquare);
-
-// In this example, we will learn a multi-class SVM using the one-vs - one(OvO)
-// approach. The OvO approacbh can decompose decision problems involving multiple 
-// classes into a series of binary ones, which can then be solved using SVMs.
-
-// Ensure we have reproducible results
-Accord.Math.Random.Generator.Seed = 0;
-
-// We will try to learn a classifier
-// for the Fisher Iris Flower dataset
-// inputs and outputs defined above
-
-// We will use mini-batches of size 32 to learn a SVM using SGD
-var batches = MiniBatches.Create(batchSize: 32, maxIterations: 1000,
-   shuffle: ShuffleMethod.EveryEpoch, input: inputs, output: outputs);
-
-// Now, we can create a multi-class teaching algorithm for the SVMs
- var teachermsv = new MulticlassSupportVectorLearning<Linear, double[]>
-{
-    // We will use SGD to learn each of the binary problems in the multi-class problem
-    Learner = (p) => new AveragedStochasticGradientDescent<Linear, double[], LogisticLoss>()
-    {
-        LearningRate = 1e-3,
-        MaxIterations = 1 // so the gradient is only updated once after each mini-batch
-    }
-};
-
-// The following line is only needed to ensure reproducible results. Please remove it to enable full parallelization
-teacher.ParallelOptions.MaxDegreeOfParallelism = 1; // (Remove, comment, or change this line to enable full parallelism)
-
-// Now, we can start training the model on mini-batches:
-foreach (var batch in batches)
-{
-    teachermsv.Learn(batch.Inputs, batch.Outputs);
 }
 
-// Get the final model:
-var svm = teachermsv.Model;
-
-// Now, we should be able to use the model to predict 
-// the classes of all flowers in Fisher's Iris dataset:
-int[] prediction = svm.Decide(inputs);
-
-// And from those predictions, we can compute the model accuracy:
- cm = new GeneralConfusionMatrix(expected: outputs, predicted: prediction);
- accuracy = cm.Accuracy; // should be approximately 0.973
-Console.WriteLine("SVM model using o-vs-o using Average Stochastic Gradient Descent to learn the model");
-Console.WriteLine("Accuracy = {0:p2}%, Precision = {1:p2}, Recall = {2:p2}", accuracy, cm.Precision[1], cm.Recall[2]);
-
-var mn = new MNISTData();
-Console.WriteLine("MNIST Data created");
-
-var breast = new BreastData();
-Console.WriteLine("Breast Cancer Data created");
-var breastInputs = breast.iData.Select(arr => arr.Select(i => (double)i.GetValueOrDefault()).ToArray()).ToArray();
-int[]? breastOutputs = breast.classLabels;
-double[]? breastLabels = breastOutputs.Select(i => (double)i).ToArray();
-
-Console.WriteLine("create the sequential minimal optimization teacher with a Gaussian Kernel");
-// Now, we can create the sequential minimal optimization teacher
-var learn = new SequentialMinimalOptimization<Gaussian>()
-{
-    UseComplexityHeuristic = true,
-    UseKernelEstimation = true
-};
-
-// And then we can obtain a trained SVM by calling its Learn method
-SupportVectorMachine<Gaussian> svm4 = learn.Learn(breastInputs, breastOutputs);
-
-// Finally, we can obtain the decisions predicted by the machine:
-GeneralConfusionMatrix _br2 = GeneralConfusionMatrix.Estimate(svm4, breastInputs, breastOutputs);
-Console.ForegroundColor = ConsoleColor.Red;
-Console.WriteLine("Accuracy = {0:p2}%", _br2.Accuracy);
-Console.ResetColor();
+int[] MNISTLabels = MNISTCSV_data.GetColumn(0).ToInt32();
+//int index = MNISTCSV_data.DeepToMatrix().GetLength(1);
+int[] range = Enumerable.Range(1, (MNISTCSV_data.DeepToMatrix().GetLength(1)) - 1).ToArray();
+MNISTCSV_data = MNISTCSV_data.GetColumns(range);
 //
-// Let's learn some multiclass wine data
+// Linear Support Vector with a polynomial kernel
 //
 
-WineData foo = new WineData(); // Get the wine data set from the Accord library, has 3 clases
-Console.WriteLine("Got the wine data");
-MulticlassSupportVectorLearning<Gaussian> _wineTeacher = new MulticlassSupportVectorLearning<Gaussian>()
-{
-    //Learner = static (params) => new LowerBoundNewtonRaphson()
-Learner = (param) => new SequentialMinimalOptimization<Gaussian>()
-/*ProbabilisticNewtonMethod ()*/
-/*StochasticGradientDescent<Gaussian>()*/
-/*SupportVectorReduction<Gaussian>()*/
-/*FanChenLinSupportVectorRegression<Gaussian>()*/
-{
-    // If you would like to use other kernels, simply replace
-    // the generic parameter to the desired kernel class, such
-    // as for example, Polynomial or Gaussian:
-    Kernel = new Gaussian(),// use the Gaussian kernel
-                            //UseComplexityHeuristic = true,
-                            //UseKernelEstimation = true
-}
-};
-
-// class label check
-var labelCounts = foo.classLabels.GroupBy(x => x).Select(g => new { Label = g.Key, Count = g.Count() });
-foreach (var labelCount in labelCounts)
-{
-    Console.WriteLine($"Label: {labelCount.Label}, Count: {labelCount.Count}");
-}
-
-
-// Estimate the multi-class support vector machine using one-vs-one method
-//MulticlassSupportVectorMachine<Gaussian> WineResult = _wineTeacher.Learn(foo.iData, foo.classLabels);
-
-//_br2 = GeneralConfusionMatrix.Estimate(WineResult, foo.iData, foo.classLabels);
-Console.ForegroundColor = ConsoleColor.Red;
-//Console.WriteLine("Accuracy = {0:p2}%", _br2.Accuracy);
+//Iris Data
+var _SVM_Poly = new MulticlassSVM_PolynomialKernel(_IrisData.iData, _IrisData.classLabels);
+Console.WriteLine("Using Iris Data Multiclass SVM Polynomial Kernel");
+Console.ForegroundColor = ConsoleColor.Green;
+Console.Write(" Accuracy = {0:p2}", _SVM_Poly.Accuracy);
 Console.ResetColor();
+Console.WriteLine(" Precision = {0:p2}, Elapsed:{1}\n", _SVM_Poly.Precision[0], _SVM_Poly.RunTime);
 
-var _mlr = new MultinomialLogisticLearning<BroydenFletcherGoldfarbShanno>()
-{
+// Wisconsin Diagnostic Breast Cancer dataset
+var WDBreastData = new WisconsinDiagnosticBreastCancer();
+double[][] _Cancer = WDBreastData.Features; // get the flower characteristics
+int[] _CancerOutputs = WDBreastData.ClassLabels;   // get the expected flower classes
+var _WDBD = new MulticlassSVM_PolynomialKernel(_Cancer, _CancerOutputs);
+Console.WriteLine("Using Breast Cancer Data MulticlassSVM Polynomial Kernel");
+Console.ForegroundColor = ConsoleColor.Green;
+Console.Write (" Accuracy = {0:p2}",  _WDBD.Accuracy);
+Console.ResetColor();
+Console.WriteLine (" Precision = {0:p2}, Elapsed = {1}\n", _WDBD.Precision[0],_WDBD.RunTime);
 
-};
-var _lBFGS = _mlr.Learn(foo.iData, foo.classLabels);
+// Wine Data
+// Fails, there are no samples for class label 0
+// var _Wine_MultiSVM_Poly_Kernel = new MulticlassSVM_PolynomialKernel(_Winedata.iData, _Winedata.classLabels);
+// Console.WriteLine("Wine Data");
+// Console.WriteLine(" Accuracy = {0:p4}, Precision = {1:p4}, Elapsed {2}\n", _Wine_MultiSVM_Poly_Kernel.Accuracy, _Wine_MultiSVM_Poly_Kernel.Precision[0], _Wine_MultiSVM_Poly_Kernel.Elapsed);
+
+// MNIST Data
+var _MNIST_Poly = new MulticlassSVM_PolynomialKernel(MNISTCSV_data, MNISTLabels);
+Console.WriteLine("Using MNIST Data Polynomial Kernel");
+Console.ForegroundColor = ConsoleColor.Green;
+Console.Write(" Accuracy = {0:p2}", _MNIST_Poly.Accuracy);
+Console.ResetColor();
+Console.WriteLine (" Precision {0}, Elapsed {1}", _MNIST_Poly.Precision[0], _MNIST_Poly.RunTime);
+
+
+// Iris Data
+var _iris_poly_nobatch = new MultiNomialPolyKernel_no_batches(_IrisData.iData, _IrisData.classLabels);
+Console.WriteLine("Iris Data - MultiNomialPolyKernel_no_batches");
+Console.ForegroundColor = ConsoleColor.Green;
+Console.Write("Accuracy = {0:p4})", _iris_poly_nobatch.Accuracy);
+Console.ResetColor (); 
+Console.WriteLine ( " Precision = {0:p4}, Elapsed {1}\n",_iris_poly_nobatch.Precision, _iris_poly_nobatch.RunTime);
+
+
+
+// This is commented out because it is really slow
+/*var _MNIST_SVM_Poly = new MulticlassSVM_PolynomialKernel(MNISTCSV_data, MNISTLabels);
+// var _MNIST_SVM_Poly = new MulticlassSVM_PolynomialKernel(_MNISTData._training.Item1.Select(s => s.ToDense()).ToArray(), _MNISTData._training.Item2.ToInt32());
+Console.WriteLine("Using MNIST Data");
+Console.WriteLine("  MNIST Data - MultiClassSVM Polynomial kernel:Accuracy = {0:p2}, Precision = {1:p2}, Elapsed {2}\n", _MNIST_SVM_Poly.Accuracy, _MNIST_SVM_Poly.Precision[0], _MNIST_SVM_Poly.RunTime);
+*/
+// ***********************************************************************************************
+
+
+var _IRIS_Gaussian = new MultiClassSVMGaussian (_IrisData.iData, _IrisData.classLabels);
+Console.WriteLine("Using Iris Data - Multi Class SVM  Gaussian Kernel:");
+Console.ForegroundColor = ConsoleColor.Green;
+Console.Write(" Accuracy = {0:p4}", _IRIS_Gaussian.Accuracy);
+Console.ResetColor();
+Console.WriteLine(" Precision = {0:p2}, Elapsed: {1} \n", _IRIS_Gaussian.Precision, _IRIS_Gaussian.RunTime);
+
+var _WBCD_SVMGaussian = new MultiClassSVMGaussian(_Cancer, _CancerOutputs);
+Console.WriteLine("Using Wisconsin Breast Data with Multiclass SVM Gaussian Kernel");
+Console.ForegroundColor = ConsoleColor.Green;
+Console.Write(" Accuracy = {0:p2}", _WBCD_SVMGaussian.Accuracy);
+Console.ResetColor();
+Console.WriteLine(" Precision = {0:p2}, Elapsed: {1} \n", _WBCD_SVMGaussian.Precision, _WBCD_SVMGaussian.RunTime);
+
+var _Iris = new MulticlassSVM_PolynomialKernel(_IrisData.iData, _IrisData.classLabels);
+Console.WriteLine("Using Iris Data - Multi Class SVM linear kernel w/ Polynomial Transform, Average Stochastic Gradient Descent");
+Console.ForegroundColor = ConsoleColor.Green;
+Console.Write(" Accuracy = {0:p2}", _Iris.Accuracy);
+Console.ResetColor();
+Console.WriteLine(" Precision = {0:p2}, Elapsed: {1} \n", _Iris.Precision[1], _Iris.RunTime);
+
+
+//
+// Logistic Regression BFGS
+//
+
+var Iris_MNLR_BFGS = new MultiNomialLogisticRegressionLBFGS(_IrisData.iData, _IrisData.classLabels);
+
 Console.ForegroundColor = ConsoleColor.Magenta;
-Console.WriteLine("Accuracy = {0:p2}%", GeneralConfusionMatrix.Estimate(_lBFGS,foo.iData, foo.classLabels).Accuracy);
-Console.ResetColor ();
+Console.WriteLine("Iris Data - Multinomial Logistic (BFGS)");
+Console.ForegroundColor = ConsoleColor.Green;
+Console.Write("Accuracy = {0:p2}%", Iris_MNLR_BFGS.Accuracy);
+Console.ResetColor();
+Console.WriteLine(" Precision = {0:p2} {1}", Iris_MNLR_BFGS.Precision, Iris_MNLR_BFGS.RunTime);
+
+
+/*var MNIST_MNLR_BFGS = new MultiNomialLogisticRegressionLBFGS(MNISTCSV_data, MNISTLabels);
+Console.ForegroundColor = ConsoleColor.Magenta;
+Console.WriteLine("MNIST Data - Multinomial Logistic (BFGS) Accuracy = {0:p2}%; Precision = {1:p2}, {2}", MNIST_MNLR_BFGS.Accuracy, MNIST_MNLR_BFGS.Precision, MNIST_MNLR_BFGS.RunTime);
+Console.ResetColor();
+*/
+var Cancer_MNLR_BFGS = new MultiNomialLogisticRegressionLBFGS(_Cancer, _CancerOutputs);
+Console.WriteLine("Breast Cancer Data - Multinomial Logistic (BFGS)");
+Console.ForegroundColor = ConsoleColor.Red;
+Console.Write(" Accuracy = {0:p2}", Cancer_MNLR_BFGS.Accuracy);
+Console.ResetColor();
+Console.WriteLine(" Precision = {0:p2}, {1}", Cancer_MNLR_BFGS.Precision, Cancer_MNLR_BFGS.RunTime);
+
+
+var Wine_MNLR_BFGS = new MultiNomialLogisticRegressionLBFGS(_Winedata.iData, _Winedata.classLabels);
+Console.WriteLine("Wine Data - Multinomial Logistic (BFGS)");
+Console.ForegroundColor = ConsoleColor.Red;
+Console.Write(" Accuracy = {0:p2}", Wine_MNLR_BFGS.Accuracy);
+Console.ResetColor();
+Console.WriteLine (" Precision = {0:p2}, {1}", Wine_MNLR_BFGS.Precision, Wine_MNLR_BFGS.RunTime);
+
+// Logistic Regression with Stochastic Gradient Descent
+
 
 
